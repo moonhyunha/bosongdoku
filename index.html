@@ -1,366 +1,326 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bosongdoku 🐱</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bosongdoku</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#FBF6EF;font-family:'Trebuchet MS',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:24px 12px 40px;}
+#title{display:flex;align-items:center;gap:4px;margin-bottom:16px;}
+#title .t1{font-size:28px;font-weight:800;color:#5a4a3a;letter-spacing:-1px;}
+#title .t2{font-size:28px;font-weight:800;color:#D6499B;letter-spacing:-1px;}
+#status{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;justify-content:center;}
+.stat-chip{background:#fff;border-radius:10px;padding:6px 16px;border:1px solid #eee0d0;font-size:13px;font-weight:700;color:#8a7a6a;}
+.stat-chip.cat{color:#D6499B;}
+#board{display:grid;border-radius:14px;overflow:hidden;box-shadow:0 4px 22px rgba(0,0,0,0.13);border:4px solid #fff;}
+.cell{display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,0.35);user-select:none;transition:filter 0.1s;position:relative;}
+.cell:hover{filter:brightness(1.09);}
+.x-mark{font-weight:900;color:rgba(255,255,255,0.88);line-height:1;pointer-events:none;}
+.cat-wrap{position:relative;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.cat-wrap img{display:block;width:100%;height:100%;object-fit:contain;}
+.bazzi{position:absolute;top:-18%;right:-18%;pointer-events:none;}
+#board-footer{display:flex;align-items:center;margin-top:14px;width:100%;}
+#reset-btn{background:#fff;border:1.5px solid #ddd0c0;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;color:#8a7a6a;cursor:pointer;transition:background 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.07);}
+#reset-btn:hover{background:#f5ede0;}
+#msg{margin-top:12px;font-size:15px;font-weight:700;min-height:22px;text-align:center;}
+#hint{margin-top:10px;text-align:center;font-size:12px;color:#b0a090;line-height:1.9;}
+@keyframes bazziFlash{0%,100%{opacity:1;transform:scale(1)}40%{opacity:0;transform:scale(0.7)}70%{opacity:1;transform:scale(1.15)}}
+.bazzi-anim{animation:bazziFlash 0.35s ease-in-out infinite;}
+@keyframes angryShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.angry-wrap{animation:angryShake 0.45s ease-in-out;}
+@keyframes catPop{0%{transform:scale(0.25);opacity:0}65%{transform:scale(1.18);opacity:1}100%{transform:scale(1);opacity:1}}
+.cat-pop{animation:catPop 0.24s ease-out;}
+</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useEffect, useCallback, useRef } = React;
+<div id="title"><span class="t1">Bosong</span><span class="t2">doku</span></div>
+<div id="status"></div>
+<div id="board"></div>
+<div id="board-footer"><button id="reset-btn">↺ 초기화</button></div>
+<div id="msg"></div>
+<div id="hint">클릭: 빈칸→X / 무언가 있는 칸→빈칸 &nbsp;|&nbsp; 더블클릭: 고양이 배치/해제</div>
 
-    // ---------- CONFIG ----------
-    const LEVELS = Array.from({ length: 10 }, (_, i) => {
-      const size = 5 + i;
-      const repeats = i < 3 ? 3 : i < 7 ? 4 : 5;
-      return { level: i + 1, size, colors: size, repeats };
-    });
+<script>
+const PALETTE=["#4FC3E8","#7C5CBF","#E8C547","#D6499B","#2FB88A","#F0A8C4","#E67E22","#3B82F6","#6DB33F","#C0392B","#9B59B6","#1ABC9C","#F39C12","#607D8B"];
+const LEVELS=[...Array(10)].map((_,i)=>({level:i+1,size:5+i,repeats:i<3?3:i<7?4:5}));
 
-    const PALETTE = [
-      "#4FC3E8","#8E7CC3","#E8C547","#D6499B","#2FB88A",
-      "#F0A8C4","#E67E22","#3B82F6","#A3D977","#C0392B",
-      "#9B59B6","#1ABC9C","#F39C12","#7F8C8D",
-    ];
+function sfl(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=0|Math.random()*(i+1);[b[i],b[j]]=[b[j],b[i]];}return b;}
 
-    const ICON_COUNT = 4; // ico1.png ~ ico4.png
-
-    // ---------- PUZZLE GENERATION ----------
-    function shuffle(arr) {
-      const a = [...arr];
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
+function genStars(n){
+  for(let t=0;t<3000;t++){
+    const cols=sfl([...Array(n).keys()]);const pos=[];let ok=true;
+    for(let r=0;r<n;r++){
+      const c=cols[r];let cf=false;
+      for(const p of pos){if(Math.abs(p.r-r)<=1&&Math.abs(p.c-c)<=1){cf=true;break;}}
+      if(cf){ok=false;break;}pos.push({r,c});
     }
+    if(ok&&pos.length===n)return pos;
+  }
+  return[...Array(n)].map((_,r)=>({r,c:r}));
+}
 
-    function generateStarPositions(n) {
-      for (let attempt = 0; attempt < 2000; attempt++) {
-        const cols = shuffle([...Array(n).keys()]);
-        const positions = [];
-        let ok = true;
-        for (let r = 0; r < n; r++) {
-          const c = cols[r];
-          for (const p of positions) {
-            if (Math.abs(p.r - r) <= 1 && Math.abs(p.c - c) <= 1) { ok = false; break; }
-          }
-          if (!ok) break;
-          positions.push({ r, c });
+function genGroups(n,stars){
+  const grid=Array.from({length:n},()=>Array(n).fill(-1));
+  stars.forEach((s,i)=>{grid[s.r][s.c]=i;});
+  const si=0|Math.random()*n;
+  const fr=stars.map(s=>[{r:s.r,c:s.c}]);
+  let asgn=n;
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  let stk=0;
+  while(asgn<n*n){
+    let grew=false;
+    for(const gi of sfl([...Array(n).keys()])){
+      if(gi===si)continue;
+      for(const cell of sfl([...fr[gi]])){
+        let ex=false;
+        for(const[dr,dc]of sfl(dirs)){
+          const nr=cell.r+dr,nc=cell.c+dc;
+          if(nr<0||nr>=n||nc<0||nc>=n||grid[nr][nc]!==-1)continue;
+          grid[nr][nc]=gi;fr[gi].push({r:nr,c:nc});asgn++;ex=true;grew=true;break;
         }
-        if (ok && positions.length === n) return positions;
+        if(ex)break;
       }
-      return null;
     }
-
-    function generateGroups(n, stars) {
-      const grid = Array.from({ length: n }, () => Array(n).fill(-1));
-      stars.forEach((s, idx) => { grid[s.r][s.c] = idx; });
-      const singleGroupIdx = Math.floor(Math.random() * n);
-      const frontiers = stars.map((s) => [s]);
-      const groupSizes = Array(n).fill(1);
-      const totalCells = n * n;
-      let assigned = n;
-      const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-      let stuckCounter = 0;
-      while (assigned < totalCells) {
-        let order = shuffle([...Array(n).keys()]);
-        let grew = false;
-        for (const g of order) {
-          if (g === singleGroupIdx) continue;
-          let expanded = false;
-          frontiers[g] = shuffle(frontiers[g]);
-          for (let fi = 0; fi < frontiers[g].length; fi++) {
-            const cell = frontiers[g][fi];
-            for (const [dr, dc] of shuffle(dirs)) {
-              const nr = cell.r + dr, nc = cell.c + dc;
-              if (nr < 0 || nr >= n || nc < 0 || nc >= n) continue;
-              if (grid[nr][nc] !== -1) continue;
-              grid[nr][nc] = g;
-              frontiers[g].push({ r: nr, c: nc });
-              groupSizes[g]++; assigned++; expanded = true; grew = true; break;
-            }
-            if (expanded) break;
-          }
-        }
-        if (!grew) { stuckCounter++; if (stuckCounter > 5) break; } else stuckCounter = 0;
+    if(!grew){stk++;if(stk>8)break;}else stk=0;
+  }
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++){
+    if(grid[r][c]===-1){
+      let f=false;
+      for(const[dr,dc]of dirs){
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<n&&nc>=0&&nc<n&&grid[nr][nc]!==-1&&grid[nr][nc]!==si){grid[r][c]=grid[nr][nc];f=true;break;}
       }
-      for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-          if (grid[r][c] === -1) {
-            let assignedG = -1;
-            for (const [dr, dc] of dirs) {
-              const nr = r+dr, nc = c+dc;
-              if (nr>=0&&nr<n&&nc>=0&&nc<n&&grid[nr][nc]!==-1&&grid[nr][nc]!==singleGroupIdx) { assignedG=grid[nr][nc]; break; }
-            }
-            if (assignedG === -1) assignedG = singleGroupIdx === 0 ? (n > 1 ? 1 : 0) : 0;
-            grid[r][c] = assignedG; groupSizes[assignedG]++;
-          }
-        }
+      if(!f)grid[r][c]=si===0?(n>1?1:0):0;
+    }
+  }
+  return grid;
+}
+
+function genPuzzle(n){
+  const stars=genStars(n);
+  const grid=genGroups(n,stars);
+  const colors=sfl([...Array(PALETTE.length).keys()]).slice(0,n).map(i=>PALETTE[i]);
+  return{grid,stars,colors,n};
+}
+
+function isValid(n,grid,cats,r,c){
+  for(let i=0;i<n;i++){
+    if(i!==c&&cats[r][i])return false;
+    if(i!==r&&cats[i][c])return false;
+  }
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<n&&nc>=0&&nc<n&&cats[nr][nc])return false;
+  }
+  const g=grid[r][c];
+  for(let rr=0;rr<n;rr++)for(let cc=0;cc<n;cc++){
+    if(!(rr===r&&cc===c)&&grid[rr][cc]===g&&cats[rr][cc])return false;
+  }
+  return true;
+}
+
+function checkWin(n,cats){return cats.flat().filter(Boolean).length===n;}
+
+// 만화 빠직마크 SVG
+function bazziSVG(sz){
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="30,2 36,20 52,10 42,26 60,28 44,36 56,52 38,44 36,60 28,44 10,54 20,38 2,34 18,26 6,10 24,20" fill="#e8000a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="30,10 34,22 46,16 38,26 52,28 40,34 50,46 36,40 34,52 28,40 16,48 24,34 10,30 24,24 14,14 26,22" fill="#ff3a3a"/>
+  </svg>`;
+}
+
+function catImgHTML(iw, icoNum, angry, isNew){
+  const bazziSz = Math.round(iw * 0.48);
+  const wrapClass = angry ? 'cat-wrap angry-wrap' : isNew ? 'cat-wrap cat-pop' : 'cat-wrap';
+  const bazzi = angry
+    ? `<div class="bazzi bazzi-anim">${bazziSVG(bazziSz)}</div>`
+    : '';
+  return `<div class="${wrapClass}" style="width:${iw}px;height:${iw}px;">
+    <img src="./image/ico${icoNum}.png" alt="cat" width="${iw}" height="${iw}"/>
+    ${bazzi}
+  </div>`;
+}
+
+// ---------- STATE ----------
+let G={levelIdx:0,stage:1,puzzle:null,cats:null,marks:null,angry:{},won:false,icoNum:1};
+let clickTimer=null;
+// track which cells are "newly placed" this render cycle
+let newCells={};
+
+function mkGrid(n){return Array.from({length:n},()=>Array(n).fill(false));}
+
+function pickIco(){return 1+(0|Math.random()*4);}
+
+function newPuzzle(){
+  const sz=LEVELS[G.levelIdx].size;
+  G.puzzle=genPuzzle(sz);
+  G.cats=mkGrid(G.puzzle.n);
+  G.marks=mkGrid(G.puzzle.n);
+  G.angry={};
+  G.won=false;
+  G.icoNum=pickIco();
+  newCells={};
+  render();
+}
+
+function resetBoard(){
+  if(!G.puzzle)return;
+  G.cats=mkGrid(G.puzzle.n);
+  G.marks=mkGrid(G.puzzle.n);
+  G.angry={};
+  G.won=false;
+  newCells={};
+  render();
+}
+
+function render(){
+  const{puzzle,cats,marks,angry,won,levelIdx,stage,icoNum}=G;
+  if(!puzzle)return;
+  const conf=LEVELS[levelIdx];
+  const n=puzzle.n;
+  const csz=Math.max(30,Math.min(56,Math.floor(Math.min(window.innerWidth-32,480)/n)));
+  const iw=Math.round(csz*0.74);
+  const xfs=Math.round(csz*0.42);
+
+  const catCount=cats.flat().filter(Boolean).length;
+  document.getElementById('status').innerHTML=`
+    <div class="stat-chip">레벨 ${conf.level} / ${LEVELS.length}</div>
+    <div class="stat-chip">스테이지 ${stage} / ${conf.repeats}</div>
+    <div class="stat-chip cat">🐱 ${catCount} / ${n}</div>`;
+
+  const board=document.getElementById('board');
+  board.style.gridTemplateColumns=`repeat(${n},${csz}px)`;
+  board.style.gridTemplateRows=`repeat(${n},${csz}px)`;
+
+  let html='';
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const color=puzzle.colors[puzzle.grid[r][c]];
+      const hasCat=cats[r][c];
+      const isMark=marks[r][c];
+      const key=`${r},${c}`;
+      const isAngry=!!angry[key];
+      const isNew=!!newCells[key];
+      let inner='';
+      if(isAngry){
+        inner=catImgHTML(iw,icoNum,true,false);
+      } else if(hasCat){
+        inner=catImgHTML(iw,icoNum,false,isNew);
+      } else if(isMark){
+        inner=`<span class="x-mark" style="font-size:${xfs}px;">✕</span>`;
       }
-      return grid;
+      html+=`<div class="cell" data-r="${r}" data-c="${c}" style="width:${csz}px;height:${csz}px;background:${color};">${inner}</div>`;
     }
+  }
+  board.innerHTML=html;
 
-    function validateGroups(n, grid) {
-      const numGroups = Math.max(...grid.flat()) + 1;
-      for (let g = 0; g < numGroups; g++) {
-        let cells = [];
-        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (grid[r][c] === g) cells.push([r,c]);
-        if (cells.length === 0) return false;
-        const visited = new Set();
-        const stack = [cells[0]]; visited.add(cells[0].join(","));
-        while (stack.length) {
-          const [r,c] = stack.pop();
-          for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-            const nr=r+dr, nc=c+dc;
-            if (nr>=0&&nr<n&&nc>=0&&nc<n&&grid[nr][nc]===g) {
-              const key=`${nr},${nc}`; if (!visited.has(key)) { visited.add(key); stack.push([nr,nc]); }
-            }
-          }
-        }
-        if (visited.size !== cells.length) return false;
+  // clear new cells after render
+  newCells={};
+
+  const boardW=csz*n+8;
+  document.getElementById('board-footer').style.width=boardW+'px';
+
+  const allDone=levelIdx===LEVELS.length-1&&stage===LEVELS[LEVELS.length-1].repeats&&won;
+  const msgEl=document.getElementById('msg');
+  if(allDone) msgEl.innerHTML=`<span style="color:#D6499B;">🎉 모든 스테이지 완료!</span>`;
+  else if(won) msgEl.innerHTML=`<span style="color:#2FB88A;">✨ 클리어! 다음 스테이지로...</span>`;
+  else msgEl.innerHTML='';
+}
+
+// ---------- CLICK / DBLCLICK ----------
+document.getElementById('board').addEventListener('click',e=>{
+  const cell=e.target.closest('.cell');
+  if(!cell)return;
+  const r=+cell.dataset.r, c=+cell.dataset.c;
+  if(clickTimer){
+    clearTimeout(clickTimer);
+    clickTimer=null;
+    doDouble(r,c);
+  } else {
+    clickTimer=setTimeout(()=>{
+      clickTimer=null;
+      doSingle(r,c);
+    },230);
+  }
+});
+
+document.getElementById('board').addEventListener('dblclick',e=>e.preventDefault());
+
+function doSingle(r,c){
+  if(G.won)return;
+  const hasCat=G.cats[r][c];
+  const isMark=G.marks[r][c];
+  if(hasCat){
+    G.cats[r][c]=false;
+    render();
+  } else if(isMark){
+    G.marks[r][c]=false;
+    render();
+  } else {
+    G.marks[r][c]=true;
+    render();
+  }
+}
+
+function doDouble(r,c){
+  if(G.won)return;
+  const hasCat=G.cats[r][c];
+
+  if(hasCat){
+    G.cats[r][c]=false;
+    render();
+    return;
+  }
+
+  const hadMark=G.marks[r][c];
+
+  if(isValid(G.puzzle.n,G.puzzle.grid,G.cats,r,c)){
+    G.marks[r][c]=false;
+    G.cats[r][c]=true;
+    newCells[`${r},${c}`]=true;
+    if(checkWin(G.puzzle.n,G.cats)){
+      G.won=true;
+      render();
+      setTimeout(advance,1100);
+    } else {
+      render();
+    }
+  } else {
+    const key=`${r},${c}`;
+    G.marks[r][c]=false;
+    G.angry[key]=true;
+    render();
+    let b=0;
+    const iv=setInterval(()=>{
+      b++;
+      G.angry[key]=(b%2===0);
+      render();
+      if(b>=5){
+        clearInterval(iv);
+        delete G.angry[key];
+        G.marks[r][c]=hadMark;
+        render();
       }
-      return true;
-    }
+    },180);
+  }
+}
 
-    function generatePuzzle(n) {
-      let stars = null;
-      for (let i = 0; i < 50 && !stars; i++) stars = generateStarPositions(n);
-      if (!stars) { stars = []; for (let r = 0; r < n; r++) stars.push({ r, c: r }); }
-      let grid = null;
-      for (let i = 0; i < 20; i++) {
-        const g = generateGroups(n, stars);
-        if (validateGroups(n, g)) { grid = g; break; }
-      }
-      if (!grid) grid = generateGroups(n, stars);
-      const colorIndices = shuffle([...Array(PALETTE.length).keys()]).slice(0, n);
-      const colors = colorIndices.map((idx) => PALETTE[idx]);
-      return { grid, stars, colors, n };
-    }
+function advance(){
+  const conf=LEVELS[G.levelIdx];
+  if(G.stage<conf.repeats){
+    G.stage++;
+  } else if(G.levelIdx<LEVELS.length-1){
+    G.levelIdx++;
+    G.stage=1;
+  }
+  newPuzzle();
+}
 
-    // ---------- VALIDATION ----------
-    function isPlacementValid(n, grid, cats, r, c) {
-      for (let i = 0; i < n; i++) {
-        if (i !== c && cats[r][i]) return false;
-        if (i !== r && cats[i][c]) return false;
-      }
-      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-        if (dr === 0 && dc === 0) continue;
-        const nr = r+dr, nc = c+dc;
-        if (nr>=0&&nr<n&&nc>=0&&nc<n&&cats[nr][nc]) return false;
-      }
-      const g = grid[r][c];
-      for (let rr = 0; rr < n; rr++) for (let cc = 0; cc < n; cc++)
-        if (!(rr===r&&cc===c)&&grid[rr][cc]===g&&cats[rr][cc]) return false;
-      return true;
-    }
+document.getElementById('reset-btn').addEventListener('click',resetBoard);
 
-    function checkWin(n, cats) {
-      let count = 0;
-      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (cats[r][c]) count++;
-      return count === n;
-    }
-
-    // ---------- 고양이 아이콘 컴포넌트 ----------
-    // 스테이지 시작 시 랜덤 아이콘 번호 선택 (1~4)
-    const CatIcon = ({ iconNum, size }) => (
-      <img
-        src={`image/ico${iconNum}.png`}
-        alt="cat"
-        style={{ width: size * 0.7, height: size * 0.7, objectFit: 'contain' }}
-      />
-    );
-
-    // 화난 고양이: 동일한 이미지 + 우측 상단 빨간 빠직 마크 반짝임
-    const AngryCatIcon = ({ iconNum, size }) => (
-      <div style={{ position: 'relative', width: size * 0.7, height: size * 0.7 }}>
-        <img
-          src={`image/ico${iconNum}.png`}
-          alt="angry cat"
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        />
-        {/* 빠직 마크 */}
-        <div style={{
-          position: 'absolute', top: -4, right: -4,
-          fontSize: size * 0.28, lineHeight: 1,
-          animation: 'sparkFlash 0.15s ease-in-out infinite alternate'
-        }}>💥</div>
-      </div>
-    );
-
-    // ---------- MAIN ----------
-    function Bosongdoku() {
-      const [levelIdx, setLevelIdx] = useState(0);
-      const [stage, setStage] = useState(1);
-      const [puzzle, setPuzzle] = useState(null);
-      const [cats, setCats] = useState(null);
-      const [marks, setMarks] = useState(null);
-      const [shake, setShake] = useState(null);
-      const [xFlash, setXFlash] = useState(null);
-      const [won, setWon] = useState(false);
-      const [iconNum, setIconNum] = useState(1); // 현재 스테이지 아이콘 번호
-
-      const levelConf = LEVELS[levelIdx];
-
-      const newPuzzle = useCallback(() => {
-        const p = generatePuzzle(levelConf.size);
-        setPuzzle(p);
-        setCats(Array.from({ length: p.n }, () => Array(p.n).fill(false)));
-        setMarks(Array.from({ length: p.n }, () => Array(p.n).fill(false)));
-        setWon(false);
-        // 스테이지마다 랜덤 아이콘 선택 (1~4)
-        setIconNum(Math.floor(Math.random() * ICON_COUNT) + 1);
-      }, [levelConf.size]);
-
-      useEffect(() => { newPuzzle(); }, [levelIdx, stage]);
-
-      const handleClick = (r, c) => {
-        if (!puzzle || won) return;
-        if (cats[r][c]) return;
-        const newMarks = marks.map((row) => [...row]);
-        newMarks[r][c] = !newMarks[r][c];
-        setMarks(newMarks);
-      };
-
-      const handleDoubleClick = (r, c) => {
-        if (!puzzle || won) return;
-        if (cats[r][c]) return;
-        if (marks[r][c]) {
-          setXFlash({ r, c });
-          setTimeout(() => setXFlash(null), 300);
-          return;
-        }
-        const valid = isPlacementValid(puzzle.n, puzzle.grid, cats, r, c);
-        if (valid) {
-          const newCats = cats.map((row) => [...row]);
-          newCats[r][c] = true;
-          setCats(newCats);
-          if (checkWin(puzzle.n, newCats)) {
-            setWon(true);
-            setTimeout(() => advanceStage(), 900);
-          }
-        } else {
-          setShake({ r, c });
-          setTimeout(() => setShake(null), 600);
-        }
-      };
-
-      const advanceStage = () => {
-        const conf = LEVELS[levelIdx];
-        if (stage < conf.repeats) { setStage(stage + 1); }
-        else if (levelIdx < LEVELS.length - 1) { setLevelIdx(levelIdx + 1); setStage(1); }
-      };
-
-      const allCleared = levelIdx === LEVELS.length - 1 && stage === LEVELS[LEVELS.length-1].repeats && won;
-
-      if (!puzzle) return null;
-
-      const n = puzzle.n;
-      const cellSizePx = Math.max(28, Math.floor(360 / n));
-
-      return (
-        <div className="min-h-screen w-full flex flex-col items-center bg-[#FBF6EF] py-6 px-3 font-sans">
-          <style>{`
-            @keyframes shakeFlash {
-              0%,100% { transform: translate(0,0); }
-              20% { transform: translate(-3px,0); }
-              40% { transform: translate(3px,0); }
-              60% { transform: translate(-3px,0); }
-              80% { transform: translate(3px,0); }
-            }
-            .angry-shake { animation: shakeFlash 0.6s ease-in-out; }
-            @keyframes xRedFlash {
-              0%,100% { color: #ffffff; }
-              50% { color: #e74c3c; }
-            }
-            .x-flash { animation: xRedFlash 0.3s ease-in-out; }
-            @keyframes popIn {
-              0% { transform: scale(0.3); opacity: 0; }
-              70% { transform: scale(1.15); opacity: 1; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            .cat-pop { animation: popIn 0.25s ease-out; }
-            @keyframes sparkFlash {
-              from { transform: scale(1) rotate(-10deg); opacity: 1; }
-              to   { transform: scale(1.3) rotate(10deg); opacity: 0.6; }
-            }
-          `}</style>
-
-          <div className="w-full max-w-md flex flex-col items-center">
-            <div className="w-full flex items-center justify-between mb-1">
-              <h1 className="text-2xl font-extrabold text-[#5a4a3a] tracking-tight" style={{ fontFamily: "'Trebuchet MS', sans-serif" }}>
-                Bosongdoku 🐱
-              </h1>
-              <button onClick={newPuzzle}
-                className="text-xs px-3 py-1 rounded-lg bg-[#eee0d0] text-[#8a7a6a] font-bold hover:bg-[#e0d0c0]">
-                새 퍼즐
-              </button>
-            </div>
-
-            <div className="w-full flex items-center justify-between bg-white rounded-xl px-4 py-2 mb-4 shadow-sm border border-[#eee0d0]">
-              <span className="text-sm font-bold text-[#8a7a6a]">레벨 {levelConf.level} / {LEVELS.length}</span>
-              <span className="text-sm font-bold text-[#8a7a6a]">스테이지 {stage} / {levelConf.repeats}</span>
-              <span className="text-sm font-bold text-[#8a7a6a]">{n} x {n}</span>
-            </div>
-
-            <div className="grid rounded-2xl overflow-hidden shadow-md border-4 border-white"
-              style={{ gridTemplateColumns: `repeat(${n}, ${cellSizePx}px)`, gridTemplateRows: `repeat(${n}, ${cellSizePx}px)` }}>
-              {Array.from({ length: n }).map((_, r) =>
-                Array.from({ length: n }).map((__, c) => {
-                  const color = puzzle.colors[puzzle.grid[r][c]];
-                  const hasCat = cats[r][c];
-                  const isMarked = marks[r][c];
-                  const isShaking = shake && shake.r === r && shake.c === c;
-                  const isXFlashing = xFlash && xFlash.r === r && xFlash.c === c;
-                  return (
-                    <div key={`${r}-${c}`}
-                      onClick={() => handleClick(r, c)}
-                      onDoubleClick={() => handleDoubleClick(r, c)}
-                      className={`flex items-center justify-center cursor-pointer select-none border border-white/40 ${isShaking ? "angry-shake" : ""}`}
-                      style={{ width: cellSizePx, height: cellSizePx, backgroundColor: color }}>
-                      {hasCat && !isShaking && (
-                        <div className="cat-pop w-full h-full flex items-center justify-center">
-                          <CatIcon iconNum={iconNum} size={cellSizePx} />
-                        </div>
-                      )}
-                      {isShaking && (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <AngryCatIcon iconNum={iconNum} size={cellSizePx} />
-                        </div>
-                      )}
-                      {!hasCat && !isShaking && isMarked && (
-                        <span className={`font-extrabold ${isXFlashing ? "x-flash" : "text-white"}`}
-                          style={{ fontSize: cellSizePx * 0.5, lineHeight: 1 }}>✕</span>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="mt-5 text-center text-sm text-[#a89a8a] leading-relaxed px-2">
-              <p>한 번 클릭: X 표시 / 해제</p>
-              <p>더블 클릭: 고양이 배치</p>
-              <p className="mt-1 text-[#c9a98a]">같은 색 그룹, 같은 행, 같은 열, 인접한 칸에는 고양이가 하나만!</p>
-            </div>
-
-            {won && !allCleared && (
-              <div className="mt-4 text-lg font-bold text-[#2FB88A] animate-pulse">클리어! 다음 스테이지로 이동합니다...</div>
-            )}
-            {allCleared && (
-              <div className="mt-4 text-lg font-bold text-[#D6499B]">🎉 모든 스테이지를 완료했습니다! 🎉</div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<Bosongdoku />);
-  </script>
+newPuzzle();
+</script>
 </body>
 </html>
