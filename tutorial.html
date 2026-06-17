@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>튜토리얼 - Bosongdoku</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#FBF6EF;font-family:'Trebuchet MS',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:24px 12px 40px;}
+.title{display:flex;align-items:center;gap:4px;margin-bottom:8px;}
+.title .t1{font-size:24px;font-weight:800;color:#5a4a3a;}
+.title .t2{font-size:24px;font-weight:800;color:#D6499B;}
+#step-bar{display:flex;gap:6px;margin-bottom:18px;}
+.step-dot{width:10px;height:10px;border-radius:50%;background:#ddd0c0;transition:background 0.3s;}
+.step-dot.active{background:#D6499B;}
+.step-dot.done{background:#2FB88A;}
+#board{display:grid;border-radius:14px;overflow:hidden;box-shadow:0 4px 22px rgba(0,0,0,0.13);border:4px solid #fff;margin-bottom:20px;}
+.cell{display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,0.35);user-select:none;transition:filter 0.15s;position:relative;}
+.cell:hover{filter:brightness(1.09);}
+.x-mark{font-weight:900;color:rgba(255,255,255,0.88);line-height:1;pointer-events:none;}
+.y-mark{font-weight:900;color:#FFD700;line-height:1;pointer-events:none;text-shadow:0 0 4px rgba(0,0,0,0.3);}
+.cat-wrap{position:relative;display:flex;align-items:center;justify-content:center;pointer-events:none;background:transparent;}
+.cat-wrap img{display:block;width:100%;height:100%;object-fit:contain;background:transparent;}
+.bazzi{position:absolute;top:-18%;right:-18%;pointer-events:none;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.55;transform:scale(0.91)}}
+.pulse{animation:pulse 0.85s ease-in-out infinite;}
+@keyframes catPop{0%{transform:scale(0.25);opacity:0}65%{transform:scale(1.18);opacity:1}100%{transform:scale(1);opacity:1}}
+.cat-pop{animation:catPop 0.24s ease-out;}
+@keyframes angryBlink{0%,100%{opacity:1}25%{opacity:0.08}50%{opacity:1}75%{opacity:0.08}}
+.angry-blink{animation:angryBlink 0.9s ease-in-out;}
+@keyframes bazziFlash{0%,100%{opacity:1;transform:scale(1)}40%{opacity:0;transform:scale(0.7)}70%{opacity:1;transform:scale(1.15)}}
+.bazzi-anim{animation:bazziFlash 0.35s ease-in-out infinite;}
+#bubble-wrap{width:100%;max-width:360px;position:relative;margin-bottom:12px;}
+#bubble{background:#fff;border:2px solid #eee0d0;border-radius:16px;padding:16px 20px;font-size:14px;color:#5a4a3a;line-height:1.75;box-shadow:0 2px 12px rgba(0,0,0,0.07);min-height:72px;}
+#bubble::before{content:'';position:absolute;top:-12px;left:36px;border:6px solid transparent;border-bottom-color:#eee0d0;}
+#bubble::after{content:'';position:absolute;top:-9px;left:37px;border:5px solid transparent;border-bottom-color:#fff;}
+#bubble b{color:#5a4a3a;}
+#bubble .hi{color:#D6499B;font-weight:700;}
+#bubble .gr{color:#2FB88A;font-weight:700;}
+#next-btn{margin-top:10px;background:#D6499B;color:#fff;border:none;border-radius:12px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;display:none;transition:background 0.15s;}
+#next-btn:hover{background:#c03888;}
+#back-btn{margin-top:14px;font-size:12px;color:#b0a090;background:none;border:none;cursor:pointer;text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="title"><span class="t1">Bosong</span><span class="t2">doku</span></div>
+<div id="step-bar"></div>
+<div id="board"></div>
+<div id="bubble-wrap">
+  <div id="bubble"></div>
+  <button id="next-btn">다음 →</button>
+</div>
+<button id="back-btn" onclick="location.href='index.html'">← 메인으로</button>
+
+<script>
+// ===== 5x5 고정 레이아웃 =====
+// 그룹 배치 (0~4, 5가지 색상)
+// 규칙: 각 그룹당 보송이 1마리, 행/열당 1마리, 인접 불가
+//
+// 그룹 맵:
+// 0 0 1 2 2
+// 0 1 1 2 3
+// 0 1 4 3 3
+// 0 4 4 3 3  ← 그룹0은 5칸(왼쪽 열)
+// 4 4 2 2 3  ← 그룹1은 4칸, 2는 4칸, 3은 5칸, 4는 4칸 → 1칸짜리 없음
+//
+// 재설계: 1칸짜리 그룹 하나 필요
+// 그룹 맵 (1칸짜리 = 그룹4 at (0,4)):
+// 0 0 1 1 4   ← 4는 (0,4) 단독 1칸
+// 0 1 1 2 2
+// 0 3 1 2 2
+// 0 3 3 2 2
+// 3 3 3 2 2
+//
+// 정답 (행/열/그룹 각 1, 인접 없음):
+// (0,4)=그룹4(1칸), (1,0)=그룹0, (2,2)=그룹1, (3,3)=그룹2, (4,1)=그룹3 → 검증필요
+// 행: 0→4열, 1→0열, 2→2열, 3→3열, 4→1열 ✓ (각 행 1마리)
+// 열: 0→1행, 1→4행, 2→2행, 3→3행, 4→0행 ✓ (각 열 1마리)
+// 인접: (0,4)↔(1,0) 거리 ok / (1,0)↔(2,2) 거리 ok / (2,2)↔(3,3): |Δr|=1,|Δc|=1 → 인접!
+// 재배치 필요
+//
+// 정답 재시도:
+// (0,4)=그룹4, (1,1)=그룹0, (2,3)=그룹2, (3,0)=그룹3, (4,2)=그룹1
+// 행: 0→4, 1→1, 2→3, 3→0, 4→2 ✓
+// 열: 0→3, 1→1, 2→4, 3→2, 4→0 ✓
+// 인접 체크:
+// (0,4)↔(1,1): |Δr|=1,|Δc|=3 ok
+// (1,1)↔(2,3): |Δr|=1,|Δc|=2 ok
+// (2,3)↔(3,0): |Δr|=1,|Δc|=3 ok
+// (3,0)↔(4,2): |Δr|=1,|Δc|=2 ok
+// 모든 쌍 체크 (비인접 쌍도):
+// (0,4)↔(2,3): ok / (0,4)↔(3,0): ok / (0,4)↔(4,2): ok
+// (1,1)↔(3,0): ok / (1,1)↔(4,2): |Δr|=3 ok
+// (2,3)↔(4,2): |Δr|=2 ok ✓ 모두 통과!
+//
+// 그룹 맵 최종:
+// 0 0 1 1 4
+// 0 0 1 2 2
+// 0 3 1 2 2
+// 3 3 3 2 2
+// 3 1 1 2 2
+
+const N=5;
+const GRID=[
+  [0,0,1,1,4],
+  [0,0,1,2,2],
+  [0,3,1,2,2],
+  [3,3,3,2,2],
+  [3,1,1,2,2],
+];
+const COLORS=["#4FC3E8","#E8C547","#D6499B","#2FB88A","#7C5CBF"];
+// 정답: 그룹별 보송이 위치
+// 그룹0→(1,1), 그룹1→(4,2), 그룹2→(2,3), 그룹3→(3,0), 그룹4→(0,4)
+const ANSWER=[
+  {r:0,c:4,g:4}, // 1칸짜리 그룹4
+  {r:1,c:1,g:0},
+  {r:2,c:3,g:2},
+  {r:3,c:0,g:3},
+  {r:4,c:2,g:1},
+];
+
+// 튜토리얼 단계
+const STEPS=[
+  {type:'info',msg:`<b>Bosongdoku에 오신 걸 환영해요!</b> 🐱<br>게임판의 각 <span class="hi">색깔 그룹</span>마다 보송이를 정확히 한 마리씩 숨겨야 해요.<br>튜토리얼을 따라가며 규칙을 배워봐요!`},
+  {type:'place',targetIdx:0,hint:`보라색 칸이 보이나요? 딱 <span class="hi">1칸짜리 그룹</span>이에요!<br>1칸짜리면 보송이가 반드시 여기 있어야겠죠? 🐱<br><b>더블클릭</b>해서 보송이를 올려보세요!`},
+  {type:'info',msg:`잘했어요! 🎉 보송이를 올리면 <span class="hi">같은 행·열</span>과 <span class="hi">주변 8칸</span>에는 다른 보송이가 올 수 없어요.<br>자동으로 X 표시가 된 칸들을 확인해보세요!`},
+  {type:'info',msg:`또한 <span class="hi">같은 색 그룹</span>에는 보송이가 하나뿐이에요.<br><span class="hi">클릭</span>하면 내가 직접 X를 찍어서 "여기엔 없다"고 메모할 수 있어요. 빈칸을 한번 클릭해볼까요?`},
+  {type:'place',targetIdx:1,hint:`하늘색 그룹에 보송이를 찾아볼 시간이에요! 💙<br>X 표시가 없는 빈칸 중에서 규칙에 맞는 칸에 <b>더블클릭</b>해보세요.<br>깜박이는 칸이 정답이에요!`},
+  {type:'place',targetIdx:2,hint:`잘하고 있어요! 이번엔 핑크 그룹 차례예요 🌸<br>지금까지 배운 규칙을 활용해서 <b>더블클릭</b>으로 올려보세요.`},
+  {type:'place',targetIdx:3,hint:`초록 그룹에 보송이를 올려주세요 🌿<br>행·열·그룹·인접 규칙을 모두 만족하는 칸을 찾아보세요!`},
+  {type:'place',targetIdx:4,hint:`마지막 보송이예요! 노란 그룹에 올려주세요 🌟<br><b>더블클릭</b>으로 마무리해봐요!`},
+  {type:'clear',msg:`<span class="gr">🎉 축하해요! 모든 보송이를 찾았어요!</span><br>이제 규칙을 모두 배웠으니 본격적으로 게임을 시작해봐요!`},
+];
+
+let stepIdx=0;
+let cats=Array.from({length:N},()=>Array(N).fill(false));
+let marks=Array.from({length:N},()=>Array(N).fill(false));
+let yellows=Array.from({length:N},()=>Array(N).fill(false));
+let angry={};
+let icoNum=1+(0|Math.random()*4);
+let clickTimer=null;
+let newCat=null;
+let placedCount=0;
+
+// 단계바 (place 단계 수만큼)
+const totalPlace=STEPS.filter(s=>s.type==='place').length;
+const stepBar=document.getElementById('step-bar');
+for(let i=0;i<totalPlace;i++){
+  const d=document.createElement('div');d.className='step-dot';d.id=`dot-${i}`;stepBar.appendChild(d);
+}
+
+function updateDots(){
+  for(let i=0;i<totalPlace;i++){
+    const d=document.getElementById(`dot-${i}`);
+    if(i<placedCount)d.className='step-dot done';
+    else if(i===placedCount)d.className='step-dot active';
+    else d.className='step-dot';
+  }
+}
+
+function bazziSVG(sz){return`<svg width="${sz}" height="${sz}" viewBox="0 0 60 60"><polygon points="30,2 36,20 52,10 42,26 60,28 44,36 56,52 38,44 36,60 28,44 10,54 20,38 2,34 18,26 6,10 24,20" fill="#e8000a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><polygon points="30,10 34,22 46,16 38,26 52,28 40,34 50,46 36,40 34,52 28,40 16,48 24,34 10,30 24,24 14,14 26,22" fill="#ff3a3a"/></svg>`;}
+
+function render(){
+  const step=STEPS[stepIdx];
+  const hintCell=(step&&step.type==='place')?ANSWER[step.targetIdx]:null;
+  const csz=Math.max(56,Math.min(72,Math.floor(Math.min(window.innerWidth-32,380)/N)));
+  const iw=Math.round(csz*0.74);const xfs=Math.round(csz*0.42);
+  const board=document.getElementById('board');
+  board.style.gridTemplateColumns=`repeat(${N},${csz}px)`;
+  board.style.gridTemplateRows=`repeat(${N},${csz}px)`;
+  let html='';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const color=COLORS[GRID[r][c]];
+    const hasCat=cats[r][c];const isMark=marks[r][c];const isYellow=yellows[r][c];
+    const key=`${r},${c}`;const isAngry=!!angry[key];
+    const isHint=hintCell&&hintCell.r===r&&hintCell.c===c&&!hasCat;
+    const isNew=newCat&&newCat.r===r&&newCat.c===c;
+    let inner='';
+    if(isAngry){
+      inner=`<div class="cat-wrap angry-blink" style="width:${iw}px;height:${iw}px;"><img src="./image/ico${icoNum}.png" width="${iw}" height="${iw}"/><div class="bazzi bazzi-anim">${bazziSVG(Math.round(iw*0.48))}</div></div>`;
+    } else if(hasCat){
+      const cls=isNew?'cat-wrap cat-pop':'cat-wrap';
+      inner=`<div class="${cls}" style="width:${iw}px;height:${iw}px;"><img src="./image/ico${icoNum}.png" width="${iw}" height="${iw}"/></div>`;
+    } else if(isYellow){
+      inner=`<span class="y-mark" style="font-size:${xfs}px;">✕</span>`;
+    } else if(isMark){
+      inner=`<span class="x-mark" style="font-size:${xfs}px;">✕</span>`;
+    }
+    const cellCls=`cell${isHint?' pulse':''}`;
+    html+=`<div class="${cellCls}" data-r="${r}" data-c="${c}" style="width:${csz}px;height:${csz}px;background:${color};">${inner}</div>`;
+  }
+  board.innerHTML=html;
+  if(newCat){setTimeout(()=>{newCat=null;},300);}
+}
+
+function setBubble(msg){document.getElementById('bubble').innerHTML=msg;}
+function showNext(show,label='다음 →'){
+  const btn=document.getElementById('next-btn');
+  btn.style.display=show?'inline-block':'none';
+  btn.textContent=label;
+}
+
+// 보송이 배치 후 자동 X (가로세로 라인 + 주변 8칸)
+function applyAutoX(r,c){
+  for(let i=0;i<N;i++){
+    if(i!==c&&!cats[r][i]&&!yellows[r][i])marks[r][i]=true;
+    if(i!==r&&!cats[i][c]&&!yellows[i][c])marks[i][c]=true;
+  }
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<N&&nc>=0&&nc<N&&!cats[nr][nc]&&!yellows[nr][nc])marks[nr][nc]=true;
+  }
+}
+
+// 1칸짜리 배치 시 노란X
+function applyYellowX(r,c){
+  for(let i=0;i<N;i++){
+    if(i!==c)yellows[r][i]=true;
+    if(i!==r)yellows[i][c]=true;
+  }
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<N&&nc>=0&&nc<N)yellows[nr][nc]=true;
+  }
+}
+
+function goStep(idx){
+  stepIdx=idx;
+  const step=STEPS[idx];
+  if(!step)return;
+  if(step.type==='info'){
+    setBubble(step.msg);showNext(true);
+  } else if(step.type==='clear'){
+    setBubble(step.msg);
+    const btn=document.getElementById('next-btn');
+    btn.style.display='inline-block';btn.textContent='게임 시작하기 🏠';
+    btn.onclick=()=>location.href='index.html';
+  } else {
+    setBubble(step.hint);showNext(false);
+  }
+  render();updateDots();
+}
+
+document.getElementById('next-btn').addEventListener('click',()=>{
+  const step=STEPS[stepIdx];
+  if(step.type==='clear')return;
+  goStep(stepIdx+1);
+});
+
+// 클릭/더블클릭
+document.getElementById('board').addEventListener('click',e=>{
+  const cell=e.target.closest('.cell');if(!cell)return;
+  const r=+cell.dataset.r,c=+cell.dataset.c;
+  if(clickTimer){clearTimeout(clickTimer);clickTimer=null;doDouble(r,c);}
+  else{clickTimer=setTimeout(()=>{clickTimer=null;doSingle(r,c);},230);}
+});
+document.getElementById('board').addEventListener('dblclick',e=>e.preventDefault());
+
+function doSingle(r,c){
+  // info 단계에서는 X 찍기 체험 허용
+  const step=STEPS[stepIdx];
+  if(step.type==='clear')return;
+  if(cats[r][c]||yellows[r][c])return;
+  marks[r][c]=!marks[r][c];render();
+}
+
+function doDouble(r,c){
+  const step=STEPS[stepIdx];
+  if(step.type!=='place')return;
+  if(cats[r][c]||yellows[r][c])return;
+  const target=ANSWER[step.targetIdx];
+
+  if(r===target.r&&c===target.c){
+    // 정답
+    marks[r][c]=false;
+    cats[r][c]=true;
+    newCat={r,c};
+    // 1칸짜리(그룹4)면 노란X
+    const isOne=GRID[r][c]===4; // 그룹4가 1칸짜리
+    if(isOne)applyYellowX(r,c);
+    else applyAutoX(r,c);
+    placedCount++;
+    render();updateDots();
+    setTimeout(()=>goStep(stepIdx+1),700);
+  } else {
+    // 오답
+    const hadMark=marks[r][c];
+    marks[r][c]=false;
+    angry[`${r},${c}`]=true;render();
+    let b=0;
+    const iv=setInterval(()=>{
+      b++;angry[`${r},${c}`]=(b%2===0);render();
+      if(b>=5){
+        clearInterval(iv);delete angry[`${r},${c}`];
+        marks[r][c]=hadMark;
+        setBubble(step.hint+`<br><span class="hi">힌트: 깜박이는 칸을 더블클릭해보세요!</span>`);
+        render();
+      }
+    },180);
+  }
+}
+
+goStep(0);
+</script>
+</body>
+</html>

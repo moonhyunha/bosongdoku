@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>레벨업 - Bosongdoku</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#FBF6EF;font-family:'Trebuchet MS',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:24px 12px 40px;}
+.title{display:flex;align-items:center;gap:4px;margin-bottom:16px;}
+.title .t1{font-size:28px;font-weight:800;color:#5a4a3a;letter-spacing:-1px;}
+.title .t2{font-size:28px;font-weight:800;color:#D6499B;letter-spacing:-1px;}
+#status{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;justify-content:center;}
+.stat-chip{background:#fff;border-radius:10px;padding:6px 16px;border:1px solid #eee0d0;font-size:13px;font-weight:700;color:#8a7a6a;}
+.stat-chip.cat{color:#D6499B;}
+#board{display:grid;border-radius:14px;overflow:hidden;box-shadow:0 4px 22px rgba(0,0,0,0.13);border:4px solid #fff;}
+.cell{display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,0.35);user-select:none;transition:filter 0.1s;position:relative;}
+.cell:hover{filter:brightness(1.09);}
+.x-mark{font-weight:900;color:rgba(255,255,255,0.88);line-height:1;pointer-events:none;}
+.y-mark{font-weight:900;color:#FFD700;line-height:1;pointer-events:none;text-shadow:0 0 4px rgba(0,0,0,0.3);}
+.cat-wrap{position:relative;display:flex;align-items:center;justify-content:center;pointer-events:none;background:transparent;}
+.cat-wrap img{display:block;width:100%;height:100%;object-fit:contain;background:transparent;}
+.bazzi{position:absolute;top:-18%;right:-18%;pointer-events:none;}
+#board-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;width:100%;}
+.footer-btn{background:#fff;border:1.5px solid #ddd0c0;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;color:#8a7a6a;cursor:pointer;transition:background 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.07);}
+.footer-btn:hover{background:#f5ede0;}
+.icon-btn{background:#fff;border:1.5px solid #ddd0c0;border-radius:10px;padding:8px 12px;font-size:16px;cursor:pointer;transition:background 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.07);}
+.icon-btn:hover{background:#f5ede0;}
+#msg{margin-top:12px;font-size:14px;font-weight:600;min-height:22px;text-align:center;color:#8a7a6a;}
+#hint-txt{margin-top:10px;text-align:center;font-size:12px;color:#b0a090;line-height:1.9;}
+#back-btn{margin-top:16px;font-size:12px;color:#b0a090;background:none;border:none;cursor:pointer;text-decoration:underline;}
+.popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:none;align-items:center;justify-content:center;z-index:200;}
+.popup-overlay.open{display:flex;}
+.popup-box{background:#fff;border-radius:20px;padding:28px 24px;width:90%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.15);position:relative;}
+.popup-title{font-size:16px;font-weight:800;color:#5a4a3a;margin-bottom:20px;}
+.popup-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#b0a090;}
+.popup-close:hover{color:#5a4a3a;}
+.setting-row{margin-bottom:24px;}
+.setting-label{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;color:#8a7a6a;margin-bottom:6px;}
+.setting-label span{color:#D6499B;font-size:14px;}
+.setting-desc{font-size:11px;color:#b0a090;margin-bottom:12px;}
+.side-labels{display:flex;justify-content:space-between;font-size:11px;color:#b0a090;margin-top:5px;}
+.dual-slider-wrap{position:relative;height:36px;display:flex;align-items:center;}
+.dual-slider-track{position:absolute;left:0;right:0;height:4px;background:#e0d0c0;border-radius:2px;}
+.dual-slider-range{position:absolute;height:4px;background:#D6499B;border-radius:2px;}
+.dual-slider-wrap input[type=range]{position:absolute;width:100%;height:4px;background:none;-webkit-appearance:none;appearance:none;pointer-events:none;outline:none;}
+.dual-slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:#D6499B;border:3px solid #fff;box-shadow:0 1px 6px rgba(214,73,155,0.4);pointer-events:auto;cursor:pointer;}
+.dual-slider-wrap input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#D6499B;border:3px solid #fff;box-shadow:0 1px 6px rgba(214,73,155,0.4);pointer-events:auto;cursor:pointer;}
+.hint-slider-wrap input[type=range]{width:100%;accent-color:#D6499B;}
+.hint-side-labels{display:flex;justify-content:space-between;font-size:11px;color:#b0a090;margin-top:5px;}
+#save-btn{width:100%;background:#D6499B;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+#save-btn:hover{background:#c03888;}
+#toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:#5a4a3a;color:#fff;border-radius:10px;padding:10px 22px;font-size:13px;font-weight:600;opacity:0;transition:all 0.3s;pointer-events:none;z-index:300;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@keyframes angryBlink{0%,100%{opacity:1}25%{opacity:0.08}50%{opacity:1}75%{opacity:0.08}}
+.angry-blink{animation:angryBlink 0.9s ease-in-out;}
+@keyframes catPop{0%{transform:scale(0.25);opacity:0}65%{transform:scale(1.18);opacity:1}100%{transform:scale(1);opacity:1}}
+.cat-pop{animation:catPop 0.24s ease-out;}
+@keyframes bazziFlash{0%,100%{opacity:1;transform:scale(1)}40%{opacity:0;transform:scale(0.7)}70%{opacity:1;transform:scale(1.15)}}
+.bazzi-anim{animation:bazziFlash 0.35s ease-in-out infinite;}
+</style>
+</head>
+<body>
+<div class="title"><span class="t1">Bosong</span><span class="t2">doku</span></div>
+<div id="status"></div>
+<div id="board"></div>
+<div id="board-footer">
+  <div style="display:flex;gap:8px;">
+    <button class="footer-btn" id="reset-btn">↺ 초기화</button>
+    <button class="icon-btn" id="settings-btn">⚙️</button>
+  </div>
+</div>
+<div id="msg"></div>
+<div id="hint-txt">클릭: 빈칸→X / 무언가 있는 칸→빈칸 &nbsp;|&nbsp; 더블클릭: 고양이 배치/해제</div>
+<button id="back-btn" onclick="location.href='index.html'">← 메인으로</button>
+
+<div class="popup-overlay" id="settings-popup">
+  <div class="popup-box">
+    <div class="popup-title">⚙️ 설정</div>
+    <button class="popup-close" id="close-settings">✕</button>
+    <div class="setting-row">
+      <div class="setting-label">레벨 범위</div>
+      <div class="setting-desc">레벨업 모드에서는 변경할 수 없어요</div>
+      <div class="dual-slider-wrap" style="pointer-events:none;opacity:0.35;">
+        <div class="dual-slider-track"></div>
+        <div class="dual-slider-range" style="left:0%;width:100%;background:#ccc;"></div>
+        <input type="range" min="1" max="10" value="1" step="1" disabled style="position:absolute;width:100%;height:4px;background:none;-webkit-appearance:none;appearance:none;pointer-events:none;"/>
+        <input type="range" min="1" max="10" value="10" step="1" disabled style="position:absolute;width:100%;height:4px;background:none;-webkit-appearance:none;appearance:none;pointer-events:none;"/>
+      </div>
+      <div class="side-labels"><span>1</span><span>10</span></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">힌트 <span id="diff-preview">Normal</span></div>
+      <div class="hint-slider-wrap">
+        <input type="range" id="diff-slider" min="1" max="5" value="3" step="1"/>
+      </div>
+      <div class="hint-side-labels"><span>Easy</span><span>Hard</span></div>
+    </div>
+    <button id="save-btn">저장</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const PALETTE=["#4FC3E8","#7C5CBF","#E8C547","#D6499B","#2FB88A","#F0A8C4","#E67E22","#3B82F6","#6DB33F","#C0392B","#9B59B6","#1ABC9C","#F39C12","#607D8B"];
+const LEVELS=[...Array(10)].map((_,i)=>({level:i+1,size:5+i,repeats:i<3?3:i<7?4:5}));
+const DIFF_NAMES=['','Super Easy','Easy','Normal','Hard','Expert'];
+function diffLabel(v){return DIFF_NAMES[v]||'Normal';}
+function clampDiff(v){return Math.min(v,4);}
+
+function sfl(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=0|Math.random()*(i+1);[b[i],b[j]]=[b[j],b[i]];}return b;}
+function genStars(n){for(let t=0;t<3000;t++){const cols=sfl([...Array(n).keys()]);const pos=[];let ok=true;for(let r=0;r<n;r++){const c=cols[r];let cf=false;for(const p of pos){if(Math.abs(p.r-r)<=1&&Math.abs(p.c-c)<=1){cf=true;break;}}if(cf){ok=false;break;}pos.push({r,c});}if(ok&&pos.length===n)return pos;}return[...Array(n)].map((_,r)=>({r,c:r}));}
+function genGroups(n,stars){const grid=Array.from({length:n},()=>Array(n).fill(-1));stars.forEach((s,i)=>{grid[s.r][s.c]=i;});const si=0|Math.random()*n;const fr=stars.map(s=>[{r:s.r,c:s.c}]);let asgn=n;const dirs=[[-1,0],[1,0],[0,-1],[0,1]];let stk=0;while(asgn<n*n){let grew=false;for(const gi of sfl([...Array(n).keys()])){if(gi===si)continue;for(const cell of sfl([...fr[gi]])){let ex=false;for(const[dr,dc]of sfl(dirs)){const nr=cell.r+dr,nc=cell.c+dc;if(nr<0||nr>=n||nc<0||nc>=n||grid[nr][nc]!==-1)continue;grid[nr][nc]=gi;fr[gi].push({r:nr,c:nc});asgn++;ex=true;grew=true;break;}if(ex)break;}}if(!grew){stk++;if(stk>8)break;}else stk=0;}for(let r=0;r<n;r++)for(let c=0;c<n;c++){if(grid[r][c]===-1){let f=false;for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<n&&nc>=0&&nc<n&&grid[nr][nc]!==-1&&grid[nr][nc]!==si){grid[r][c]=grid[nr][nc];f=true;break;}}if(!f)grid[r][c]=si===0?(n>1?1:0):0;}}return grid;}
+function genPuzzle(n){const stars=genStars(n);const grid=genGroups(n,stars);const gs=Array(n).fill(0);for(let r=0;r<n;r++)for(let c=0;c<n;c++)gs[grid[r][c]]++;const colors=sfl([...Array(PALETTE.length).keys()]).slice(0,n).map(i=>PALETTE[i]);return{grid,stars,colors,n,groupSize:gs};}
+function isValid(n,grid,cats,r,c){for(let i=0;i<n;i++){if(i!==c&&cats[r][i])return false;if(i!==r&&cats[i][c])return false;}for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<n&&nc>=0&&nc<n&&cats[nr][nc])return false;}const g=grid[r][c];for(let rr=0;rr<n;rr++)for(let cc=0;cc<n;cc++){if(!(rr===r&&cc===c)&&grid[rr][cc]===g&&cats[rr][cc])return false;}return true;}
+function checkWin(n,cats){return cats.flat().filter(Boolean).length===n&&(()=>{for(let r=0;r<n;r++){let rc=0;for(let c=0;c<n;c++)if(cats[r][c])rc++;if(rc!==1)return false;}for(let c=0;c<n;c++){let cc=0;for(let r=0;r<n;r++)if(cats[r][c])cc++;if(cc!==1)return false;}return true;})();}
+function allPlaced(n,cats){return cats.flat().filter(Boolean).length===n;}
+function bazziSVG(sz){return`<svg width="${sz}" height="${sz}" viewBox="0 0 60 60"><polygon points="30,2 36,20 52,10 42,26 60,28 44,36 56,52 38,44 36,60 28,44 10,54 20,38 2,34 18,26 6,10 24,20" fill="#e8000a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><polygon points="30,10 34,22 46,16 38,26 52,28 40,34 50,46 36,40 34,52 28,40 16,48 24,34 10,30 24,24 14,14 26,22" fill="#ff3a3a"/></svg>`;}
+function catImgHTML(iw,ico,angry,isNew){const bsz=Math.round(iw*0.48);const wc=angry?'cat-wrap angry-blink':isNew?'cat-wrap cat-pop':'cat-wrap';const bz=angry?`<div class="bazzi bazzi-anim">${bazziSVG(bsz)}</div>`:'';return`<div class="${wc}" style="width:${iw}px;height:${iw}px;"><img src="./image/ico${ico}.png" width="${iw}" height="${iw}"/>${bz}</div>`;}
+function loadSettings(){try{const s=JSON.parse(localStorage.getItem('bosong_settings')||'{}');return{difficulty:s.difficulty||3,infiniteMin:s.infiniteMin||1,infiniteMax:s.infiniteMax||10};}catch(e){return{difficulty:3,infiniteMin:1,infiniteMax:10};}}
+function saveSettings(s){localStorage.setItem('bosong_settings',JSON.stringify(s));}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
+
+// marks는 Set<catId> 기반. 비어있으면 X없음.
+function mkGrid(n){return Array.from({length:n},()=>Array(n).fill(false));}
+function mkMarkGrid(n){return Array.from({length:n},()=>Array.from({length:n},()=>new Set()));}
+function pickIco(){return 1+(0|Math.random()*4);}
+
+function canInteract(S,r,c){return!S.yellows[r][c]&&!S.lockedCats[r][c];}
+// marks: Set이 비어있고 고양이도 없고 노란X도 없어야 흰X 추가 가능
+function canSetMark(S,r,c){return!S.yellows[r][c]&&!S.lockedCats[r][c]&&!S.cats[r][c];}
+function hasMark(S,r,c){return S.marks[r][c].size>0;}
+
+function applyYellowX(S,puzzle,r,c){
+  const n=puzzle.n;
+  for(let i=0;i<n;i++){if(i!==c)S.yellows[r][i]=true;if(i!==r)S.yellows[i][c]=true;}
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<n&&nc>=0&&nc<n)S.yellows[nr][nc]=true;}
+}
+
+// 힌트 level1: 보송이 배치 후 그룹+라인에 흰X (catId 소속으로 기록)
+function applyWhiteXAfterPlace(S,puzzle,r,c,catId){
+  const n=puzzle.n;const g=puzzle.grid[r][c];
+  for(let rr=0;rr<n;rr++)for(let cc=0;cc<n;cc++){
+    if(rr===r&&cc===c)continue;
+    if(puzzle.grid[rr][cc]===g&&canSetMark(S,rr,cc))S.marks[rr][cc].add(catId);
+  }
+  for(let i=0;i<n;i++){
+    if(i!==c&&canSetMark(S,r,i))S.marks[r][i].add(catId);
+    if(i!==r&&canSetMark(S,i,c))S.marks[i][c].add(catId);
+  }
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc)continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<n&&nc>=0&&nc<n&&canSetMark(S,nr,nc))S.marks[nr][nc].add(catId);
+  }
+}
+
+// 보송이 삭제 시 해당 catId 종속 흰X 제거
+function removeWhiteXByCatId(S,n,catId){
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)S.marks[r][c].delete(catId);
+}
+
+// 설정 팝업
+function updateDiffPreview(v){document.getElementById('diff-preview').textContent=diffLabel(v);}
+document.getElementById('diff-slider').addEventListener('input',function(){
+  const v=+this.value;
+  if(v===5){showToast('🚧 준비중이에요! Hard로 설정할게요');this.value=4;updateDiffPreview(4);}
+  else updateDiffPreview(v);
+});
+document.getElementById('settings-btn').addEventListener('click',()=>{
+  const cfg=loadSettings();
+  document.getElementById('diff-slider').value=cfg.difficulty;
+  updateDiffPreview(cfg.difficulty);
+  document.getElementById('settings-popup').classList.add('open');
+});
+document.getElementById('close-settings').addEventListener('click',()=>document.getElementById('settings-popup').classList.remove('open'));
+document.getElementById('settings-popup').addEventListener('click',e=>{if(e.target===document.getElementById('settings-popup'))document.getElementById('settings-popup').classList.remove('open');});
+document.getElementById('save-btn').addEventListener('click',()=>{
+  const diff=clampDiff(+document.getElementById('diff-slider').value);
+  const s=loadSettings();s.difficulty=diff;saveSettings(s);
+  G.difficulty=diff;
+  document.getElementById('settings-popup').classList.remove('open');
+  showToast(`✅ 저장됐어요! 다음 판부터 ${diffLabel(diff)} 적용`);
+});
+
+// 게임 상태
+const cfg0=loadSettings();
+let G={
+  levelIdx:0,stage:1,puzzle:null,
+  cats:null,        // boolean grid
+  marks:null,       // Set<catId> grid
+  yellows:null,     // boolean grid
+  lockedCats:null,  // boolean grid (1칸 보송이)
+  catRegistry:{},   // catId -> {r,c}
+  catIdCounter:0,   // 단방향 증가, 절대 재사용 안 함
+  angry:{},won:false,icoNum:1,
+  difficulty:cfg0.difficulty
+};
+let clickTimer=null;let newCells={};
+
+function newPuzzle(){
+  const sz=LEVELS[G.levelIdx].size;
+  G.puzzle=genPuzzle(sz);const n=G.puzzle.n;
+  G.cats=mkGrid(n);G.marks=mkMarkGrid(n);G.yellows=mkGrid(n);G.lockedCats=mkGrid(n);
+  G.catRegistry={};G.catIdCounter=0;
+  G.angry={};G.won=false;G.icoNum=pickIco();newCells={};render();
+}
+
+function resetBoard(){
+  if(!G.puzzle)return;const n=G.puzzle.n;
+  G.cats=mkGrid(n);G.marks=mkMarkGrid(n);G.yellows=mkGrid(n);G.lockedCats=mkGrid(n);
+  G.catRegistry={};G.catIdCounter=0;
+  G.angry={};G.won=false;newCells={};render();
+}
+
+function render(){
+  const{puzzle,cats,marks,yellows,lockedCats,angry,won,levelIdx,stage,icoNum,difficulty}=G;
+  if(!puzzle)return;const conf=LEVELS[levelIdx];const n=puzzle.n;
+  const csz=Math.max(30,Math.min(56,Math.floor(Math.min(window.innerWidth-32,480)/n)));
+  const iw=Math.round(csz*0.74);const xfs=Math.round(csz*0.42);
+  const catCount=cats.flat().filter(Boolean).length;
+  document.getElementById('status').innerHTML=`
+    <div class="stat-chip">레벨 ${conf.level} / ${LEVELS.length}</div>
+    <div class="stat-chip">스테이지 ${stage} / ${conf.repeats}</div>
+    <div class="stat-chip cat">🐱 ${catCount} / ${n}</div>
+    <div class="stat-chip">${diffLabel(difficulty)}</div>`;
+  const board=document.getElementById('board');
+  board.style.gridTemplateColumns=`repeat(${n},${csz}px)`;
+  board.style.gridTemplateRows=`repeat(${n},${csz}px)`;
+  let html='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++){
+    const color=puzzle.colors[puzzle.grid[r][c]];
+    const hasCat=cats[r][c];const isLocked=lockedCats[r][c];
+    const isYellow=yellows[r][c];
+    const markSet=marks[r][c];const isMark=markSet.size>0;
+    const key=`${r},${c}`;const isAngry=!!angry[key];const isNew=!!newCells[key];
+    let inner='';
+    if(isAngry)inner=catImgHTML(iw,icoNum,true,false);
+    else if(hasCat||isLocked)inner=catImgHTML(iw,icoNum,false,isNew);
+    else if(isYellow)inner=`<span class="y-mark" style="font-size:${xfs}px;">✕</span>`;
+    else if(isMark)inner=`<span class="x-mark" style="font-size:${xfs}px;">✕</span>`;
+    html+=`<div class="cell" data-r="${r}" data-c="${c}" style="width:${csz}px;height:${csz}px;background:${color};">${inner}</div>`;
+  }
+  board.innerHTML=html;newCells={};
+  document.getElementById('board-footer').style.width=(csz*n+8)+'px';
+  const msgEl=document.getElementById('msg');
+  const allDone=levelIdx===LEVELS.length-1&&stage===LEVELS[LEVELS.length-1].repeats&&won;
+  if(allDone)msgEl.innerHTML=`<span style="color:#D6499B;">🎉 모든 스테이지 완료!</span>`;
+  else if(won)msgEl.innerHTML=`<span style="color:#2FB88A;">✨ 클리어! 다음 스테이지로...</span>`;
+  else if(difficulty===4&&allPlaced(n,cats)&&!checkWin(n,cats))
+    msgEl.innerHTML=`<span style="color:#E67E22;">😿 보송이가 슬퍼해요... 어디에 보송이를 잘못 놓았는지 확인해볼까요?</span>`;
+  else msgEl.innerHTML='';
+}
+
+document.getElementById('board').addEventListener('click',e=>{
+  const cell=e.target.closest('.cell');if(!cell)return;
+  const r=+cell.dataset.r,c=+cell.dataset.c;
+  if(clickTimer){clearTimeout(clickTimer);clickTimer=null;doDouble(r,c);}
+  else{clickTimer=setTimeout(()=>{clickTimer=null;doSingle(r,c);},230);}
+});
+document.getElementById('board').addEventListener('dblclick',e=>e.preventDefault());
+
+function doSingle(r,c){
+  if(G.won)return;
+  if(!canInteract(G,r,c))return;
+  if(G.cats[r][c]){
+    // 보송이 삭제
+    const catId=G.cats[r][c]; // cats[r][c]에 catId 저장
+    G.cats[r][c]=false;
+    if(G.difficulty===1)removeWhiteXByCatId(G,G.puzzle.n,catId);
+    delete G.catRegistry[catId];
+    render();
+  } else {
+    // 흰X 토글 (수동)
+    // 수동 X는 catId=0 으로 관리 (자동X와 구분)
+    if(G.marks[r][c].has(0)){G.marks[r][c].delete(0);}
+    else if(canSetMark(G,r,c)){G.marks[r][c].add(0);}
+    render();
+  }
+}
+
+function doDouble(r,c){
+  if(G.won)return;
+  if(!canInteract(G,r,c))return;
+  if(G.cats[r][c]){
+    // 더블클릭으로 보송이 해제
+    const catId=G.cats[r][c];
+    G.cats[r][c]=false;
+    if(G.difficulty===1)removeWhiteXByCatId(G,G.puzzle.n,catId);
+    delete G.catRegistry[catId];
+    render();return;
+  }
+  // 배치 전 현재 수동X 여부 저장 (오답 시 복원용)
+  const hadManualX=G.marks[r][c].has(0);
+  const diff=G.difficulty;
+  const isOneCellGroup=G.puzzle.groupSize[G.puzzle.grid[r][c]]===1;
+
+  if(isValid(G.puzzle.n,G.puzzle.grid,G.cats,r,c)){
+    // 새 catId 발급 (항상 max+1)
+    G.catIdCounter++;
+    const catId=G.catIdCounter;
+    // 수동X 있으면 제거
+    G.marks[r][c].delete(0);
+    // 보송이 배치 (cats에 catId 저장)
+    G.cats[r][c]=catId;
+    G.catRegistry[catId]={r,c};
+    newCells[`${r},${c}`]=true;
+    // level1,2: 1칸 보송이면 노란X + locked
+    if((diff===1||diff===2)&&isOneCellGroup){
+      G.lockedCats[r][c]=catId;
+      applyYellowX(G,G.puzzle,r,c);
+    }
+    // level1: 흰X 자동 (catId 소속)
+    if(diff===1)applyWhiteXAfterPlace(G,G.puzzle,r,c,catId);
+    if(checkWin(G.puzzle.n,G.cats)){G.won=true;render();setTimeout(advance,1100);}
+    else render();
+  } else {
+    if(diff===4){
+      // Expert: 오답도 그냥 배치
+      G.catIdCounter++;
+      const catId=G.catIdCounter;
+      G.marks[r][c].delete(0);
+      G.cats[r][c]=catId;
+      G.catRegistry[catId]={r,c};
+      newCells[`${r},${c}`]=true;
+      render();
+    } else {
+      // 오답 애니메이션 후 복원
+      const key=`${r},${c}`;
+      G.marks[r][c].clear();
+      G.angry[key]=true;render();
+      let b=0;
+      const iv=setInterval(()=>{
+        b++;G.angry[key]=(b%2===0);render();
+        if(b>=5){
+          clearInterval(iv);delete G.angry[key];
+          // 수동X 복원
+          if(hadManualX)G.marks[r][c].add(0);
+          render();
+        }
+      },180);
+    }
+  }
+}
+
+function advance(){
+  const conf=LEVELS[G.levelIdx];
+  if(G.stage<conf.repeats)G.stage++;
+  else if(G.levelIdx<LEVELS.length-1){G.levelIdx++;G.stage=1;}
+  G.difficulty=loadSettings().difficulty;
+  newPuzzle();
+}
+
+document.getElementById('reset-btn').addEventListener('click',resetBoard);
+newPuzzle();
+</script>
+</body>
+</html>
