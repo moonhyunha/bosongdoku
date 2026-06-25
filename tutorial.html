@@ -152,7 +152,7 @@ function getGroupCells(r,c){
 // type: info(설명+다음버튼), place(더블클릭 배치유도), teach-line(라인X유도), teach-neighbor(인접X유도), teach-group(그룹X유도+다음버튼), clear
 const STEPS=[
   {type:'info',msg:`<b>튜토리얼을 시작합니다!</b> 🐱<br>게임판의 각 <span class="hi">색깔 그룹</span>마다 보송이를 정확히 한 마리씩 놓아야 해요.<br>직접 해보며 규칙을 배워봅시다.`},
-  {type:'place',targetIdx:0,hint:`보라색 칸이 보이죠? 딱 <span class="hi">1칸짜리 그룹</span>입니다.<br>1칸짜리면 보송이가 반드시 여기 있어야겠죠? 🐱<br><b>더블클릭</b>해서 보송이를 놓아보세요!`},
+  {type:'place',targetIdx:0,hint:`보라색 칸이 보이나요? 딱 <span class="hi">1칸짜리 그룹</span>입니다.<br>1칸짜리면 보송이가 반드시 여기 있어야합니다 🐱<br><b>더블클릭</b>해서 보송이를 놓아보세요!`},
   {type:'info',msg:`잘했어요! 🎉 보송이를 놓으면 <span class="hi">같은 행·열</span>과 <span class="hi">주변 8칸</span>에는 다른 보송이가 올 수 없어요.<br>X 표시가 된 칸들은 보송이를 놓을 수 없습니다.`},
   {type:'place',targetIdx:1,hint:`하늘색💙 블록에서 보송이를 찾아봅시다! <br>X 표시가 없는 빈칸 중에서 규칙에 맞는 칸에 <b>더블클릭</b>해보세요.<br>튜토리얼의 꼼수로 이번에는 힌트를 드립니다. 깜박이는 칸이 정답이에요!`},
   // 2-1: 라인 X 유도
