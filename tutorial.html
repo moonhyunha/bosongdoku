@@ -67,7 +67,7 @@ body{background:#FBF6EF;font-family:'Trebuchet MS',sans-serif;display:flex;flex-
   <p class="intro-sub">튜토리얼</p>
   <div class="intro-card">
     <span class="cat-emoji">🐱</span>
-    <p style="margin-bottom:16px;font-weight:700;">Bosongdoku에 오신 걸 환영해요!<br>이 게임은 세계 제일의 위대하고 아름다운 고양이 <b>보송이</b>를 블록 위에 올리는 퍼즐게임이에요.</p>
+    <p style="margin-bottom:16px;font-weight:700;">Bosongdoku에 오신 걸 환영합니다!<br>이 게임은 세계 제일의 위대하고 아름다운 고양이 <b>보송이</b>를 블록 위에 올리는 퍼즐게임이에요.</p>
     <p style="margin-bottom:14px;color:#8a7a6a;font-size:13px;">몇 가지 규칙만 알면 바로 즐길 수 있어요!!!</p>
     <div class="rule">
       <div class="rule-num">1</div>
@@ -149,23 +149,23 @@ function getGroupCells(r,c){
 }
 
 // 튜토리얼 단계
-// type: info(설명+다음버튼), place(더블탭 배치유도), teach-line(라인X유도), teach-neighbor(인접X유도), teach-group(그룹X유도+다음버튼), clear
+// type: info(설명+다음버튼), place(더블클릭 배치유도), teach-line(라인X유도), teach-neighbor(인접X유도), teach-group(그룹X유도+다음버튼), clear
 const STEPS=[
-  {type:'info',msg:`<b>튜토리얼을 시작합니다!</b> 🐱<br>게임판의 각 <span class="hi">색깔 그룹</span>마다 보송이를 정확히 한 마리씩 숨겨야 해요.<br>직접 해보며 규칙을 배워봐요!`},
-  {type:'place',targetIdx:0,hint:`보라색 칸이 보이시죠? 딱 <span class="hi">1칸짜리 그룹</span>이에요!<br>1칸짜리면 보송이가 반드시 여기 있어야겠죠? 🐱<br><b>더블탭</b>해서 보송이를 올려보세요!`},
-  {type:'info',msg:`잘했어요! 🎉 보송이를 올리면 <span class="hi">같은 행·열</span>과 <span class="hi">주변 8칸</span>에는 다른 보송이가 올 수 없어요.<br>자동으로 X 표시가 된 칸들을 확인해보세요!`},
-  {type:'place',targetIdx:1,hint:`하늘색 블록에서 보송이를 찾아볼 시간이에요! 💙<br>X 표시가 없는 빈칸 중에서 규칙에 맞는 칸에 <b>더블탭</b>해보세요.<br>이번엔 제가 살짝 알려드릴게요 — 깜박이는 칸이 정답이에요!`},
+  {type:'info',msg:`<b>튜토리얼을 시작합니다!</b> 🐱<br>게임판의 각 <span class="hi">색깔 그룹</span>마다 보송이를 정확히 한 마리씩 놓아야 해요.<br>직접 해보며 규칙을 배워봅시다.`},
+  {type:'place',targetIdx:0,hint:`보라색 칸이 보이죠? 딱 <span class="hi">1칸짜리 그룹</span>입니다.<br>1칸짜리면 보송이가 반드시 여기 있어야겠죠? 🐱<br><b>더블클릭</b>해서 보송이를 놓아보세요!`},
+  {type:'info',msg:`잘했어요! 🎉 보송이를 놓으면 <span class="hi">같은 행·열</span>과 <span class="hi">주변 8칸</span>에는 다른 보송이가 올 수 없어요.<br>X 표시가 된 칸들은 보송이를 놓을 수 없습니다.`},
+  {type:'place',targetIdx:1,hint:`하늘색💙 블록에서 보송이를 찾아봅시다! <br>X 표시가 없는 빈칸 중에서 규칙에 맞는 칸에 <b>더블클릭</b>해보세요.<br>튜토리얼의 꼼수로 이번에는 힌트를 드립니다. 깜박이는 칸이 정답이에요!`},
   // 2-1: 라인 X 유도
-  {type:'teach-line',hint:`보송이는 한 라인에 한 마리만 올라갈 수 있어요! 🐱<br>보송이가 있는 <span class="hi">가로·세로 줄</span>의 나머지 칸에 안전하게 X 표시를 해봐요.<br>깜박이는 칸을 모두 탭해보세요!`},
+  {type:'teach-line',hint:`보송이는 한 라인에 한 마리만 올라갈 수 있어요! 🐱<br>보송이가 있는 <span class="hi">가로·세로 줄</span>의 나머지 칸에 안전하게 X 표시를 해봐요.<br>깜박이는 빈칸을 모두 클릭해보세요!`},
   // 2-2: 인접 X 유도
-  {type:'teach-neighbor',hint:`보송이는 영역동물이에요! 🐾<br>보송이 <span class="hi">주변 8칸</span>에는 다른 보송이가 올 수 없어요.<br>깜박이는 칸을 모두 탭해보세요!`},
+  {type:'teach-neighbor',hint:`보송이는 영역동물이에요! 🐾<br>보송이 <span class="hi">주변 8칸</span>에는 다른 보송이가 올 수 없어요.<br>깜박이는 빈칸을 모두 클릭해보세요!`},
   // 2-3: 그룹 X 유도
-  {type:'teach-group',hint:`보송이는 독점욕이 강해요! 색깔 블록을 혼자 독차지하고 싶어해요.<br><span class="hi">하늘색 그룹</span> 전체에 보송이가 하나뿐이에요.<br>깜박이는 칸을 확인하고 다음으로 넘어가요!`},
+  {type:'teach-group',hint:`보송이는 2.7kg인 주제에 침대 한가운데 자리를 잡고 자는 아주 경우없는 고양이입니다! 색깔 블록을 혼자 독차지하고 싶어해요.<br><span class="hi">하늘색 그룹</span> 전체에 보송이가 하나뿐이에요.<br>깜박이는 칸을 확인하고 다음으로 넘어가요!`},
   // 3단계 이후
-  {type:'place',targetIdx:2,hint:`잘하고 있어요! 이번엔 핑크색 블록 차례예요 🌸<br>지금까지 배운 규칙을 활용해서 <b>더블탭</b>으로 올려보세요.`},
-  {type:'place',targetIdx:3,hint:`초록 블록에도 보송이를 올려주세요 🌿<br>행·열·그룹·인접 규칙을 모두 만족하는 칸을 찾아보세요!`},
-  {type:'place',targetIdx:4,hint:`마지막 보송이예요!! 노란 블록에 올려주세요 🌟<br><b>더블탭</b>으로 마무리해봐요!`},
-  {type:'clear',msg:`<span class="gr">🎉 축하해요! 모든 보송이를 찾았어요!</span><br>이제 규칙을 모두 배웠으니 본격적으로 게임을 시작해봐요!`},
+  {type:'place',targetIdx:2,hint:`잘하고 있어요! 이번엔 핑크색🌸 블록 차례예요 <br>지금까지 배운 규칙을 활용해서 <b>더블클릭</b> 해보세요.`},
+  {type:'place',targetIdx:3,hint:`초록🌿 블록에도 보송이를 올려봅시다 <br>행·열·그룹·인접 규칙을 모두 만족하는 칸을 찾아보세요!`},
+  {type:'place',targetIdx:4,hint:`마지막 보송이예요!! 노랑🌟 블록에 올려주세요 <br><b>더블클릭</b>!`},
+  {type:'clear',msg:`<span class="gr">🎉 축하합니다! 모든 보송이를 찾았어요!</span><br>이제 규칙을 모두 배웠으니 본격적으로 게임을 시작해봅시다!`},
 ];
 
 let stepIdx=0;
@@ -323,7 +323,7 @@ document.getElementById('next-btn').addEventListener('click',()=>{
   goStep(stepIdx+1);
 });
 
-// ===== 터치/클릭 이벤트 (모바일 더블탭 지원) =====
+// ===== 터치/클릭 이벤트 (모바일 더블클릭 지원) =====
 let clickTimer=null;let pendingCell=null;
 
 function handleTap(r,c){
@@ -414,7 +414,7 @@ function doDouble(r,c){
       if(b>=5){
         clearInterval(iv);delete angry[`${r},${c}`];
         marks[r][c]=hadMark;
-        setBubble(step.hint+`<br><span class="hi">힌트: 깜박이는 칸을 더블탭해보세요!</span>`);
+        setBubble(step.hint+`<br><span class="hi">힌트: 깜박이는 칸을 더블클릭해보세요!</span>`);
         render();
       }
     },180);
