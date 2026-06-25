@@ -196,7 +196,7 @@ let G={
   angry:{},won:false,icoNum:1,
   difficulty:cfg0.difficulty
 };
-let clickTimer=null;let newCells={};
+let clickTimer=null;let pendingCell=null;let newCells={};
 
 function newPuzzle(){
   const sz=LEVELS[G.levelIdx].size;
@@ -255,8 +255,21 @@ function render(){
 document.getElementById('board').addEventListener('click',e=>{
   const cell=e.target.closest('.cell');if(!cell)return;
   const r=+cell.dataset.r,c=+cell.dataset.c;
-  if(clickTimer){clearTimeout(clickTimer);clickTimer=null;doDouble(r,c);}
-  else{clickTimer=setTimeout(()=>{clickTimer=null;doSingle(r,c);},230);}
+  if(clickTimer&&pendingCell&&pendingCell.r===r&&pendingCell.c===c){
+    clearTimeout(clickTimer);clickTimer=null;pendingCell=null;
+    doDouble(r,c);
+  } else {
+    if(clickTimer&&pendingCell){
+      clearTimeout(clickTimer);clickTimer=null;
+      doSingle(pendingCell.r,pendingCell.c);
+    }
+    pendingCell={r,c};
+    clickTimer=setTimeout(()=>{
+      clickTimer=null;
+      doSingle(pendingCell.r,pendingCell.c);
+      pendingCell=null;
+    },230);
+  }
 });
 document.getElementById('board').addEventListener('dblclick',e=>e.preventDefault());
 

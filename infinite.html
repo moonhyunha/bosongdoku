@@ -244,7 +244,7 @@ document.getElementById('start-btn').addEventListener('click',()=>{
 
 // 게임 상태
 let G={puzzle:null,cats:null,marks:null,yellows:null,lockedCats:null,catRegistry:{},catIdCounter:0,angry:{},won:false,icoNum:1,stage:1,currentLevel:5,difficulty:cfg0.difficulty,lvMin:cfg0.infiniteMin,lvMax:cfg0.infiniteMax};
-let clickTimer=null;let newCells={};
+let clickTimer=null;let pendingCell=null;let newCells={};
 
 function lvToGrid(lv){return lv+4;}
 function pickLevel(){const mn=G.lvMin,mx=G.lvMax;return mn+(0|Math.random()*(mx-mn+1));}
@@ -304,8 +304,21 @@ function render(){
 document.getElementById('board').addEventListener('click',e=>{
   const cell=e.target.closest('.cell');if(!cell)return;
   const r=+cell.dataset.r,c=+cell.dataset.c;
-  if(clickTimer){clearTimeout(clickTimer);clickTimer=null;doDouble(r,c);}
-  else{clickTimer=setTimeout(()=>{clickTimer=null;doSingle(r,c);},230);}
+  if(clickTimer&&pendingCell&&pendingCell.r===r&&pendingCell.c===c){
+    clearTimeout(clickTimer);clickTimer=null;pendingCell=null;
+    doDouble(r,c);
+  } else {
+    if(clickTimer&&pendingCell){
+      clearTimeout(clickTimer);clickTimer=null;
+      doSingle(pendingCell.r,pendingCell.c);
+    }
+    pendingCell={r,c};
+    clickTimer=setTimeout(()=>{
+      clickTimer=null;
+      doSingle(pendingCell.r,pendingCell.c);
+      pendingCell=null;
+    },230);
+  }
 });
 document.getElementById('board').addEventListener('dblclick',e=>e.preventDefault());
 function doSingle(r,c){
